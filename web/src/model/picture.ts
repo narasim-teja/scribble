@@ -4,6 +4,7 @@
 
 const MANIFEST_KEY = "scribble";
 const SIDE_TABLE_CHUNK = "sbTb";
+const FORMAT_VERSION = 2;
 
 /** One square of the picture: a rectangle of one weight matrix. */
 export interface Piece {
@@ -33,6 +34,7 @@ export interface Manifest {
   square: number;
   pieces: Piece[];
   scales: Record<string, number>;
+  /** Where each named block starts in the side table, in bytes; two bytes per number. */
   side_table: { name: string; shape: number[]; offset: number }[];
   bits_crc32: number;
   vocab: { name: string; tokens: string[] };
@@ -44,8 +46,24 @@ export interface Picture {
   packed: Uint8Array;
   /** Bytes per picture row in `packed`. */
   stride: number;
-  /** The numbers that are not one bit (embeddings, gains), as stored. */
+  /** The numbers that are not one bit (embeddings, gains). */
   sideTable: Float32Array;
+}
+
+/**
+ * Little-endian 16-bit floats to ordinary numbers. Done by hand because
+ * `Float16Array` is not in every browser yet.
+ */
+function halfFloats(bytes: Uint8Array): Float32Array<ArrayBuffer> {
+  const out = new Float32Array(bytes.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    const half = bytes[2 * i] | (bytes[2 * i + 1] << 8);
+    const exponent = (half >> 10) & 31, fraction = half & 1023;
+    const size =
+      exponent === 0 ? fraction * 2 ** -24 : exponent === 31 ? (fraction ? NaN : Infinity) : (1024 + fraction) * 2 ** (exponent - 25);
+    out[i] = half & 0x8000 ? -size : size;
+  }
+  return out;
 }
 
 async function inflate(parts: Uint8Array[]): Promise<Uint8Array> {
@@ -67,7 +85,7 @@ export async function readPicture(buffer: ArrayBuffer): Promise<Picture> {
     const body = raw.subarray(at + 8, at + 8 + length);
     if (kind === "IHDR") side = view.getUint32(at + 8);
     if (kind === "IDAT") data.push(body);
-    if (kind === SIDE_TABLE_CHUNK) sideTable = new Float32Array(body.slice().buffer);
+    if (kind === SIDE_TABLE_CHUNK) sideTable = halfFloats(body);
     if (kind === "tEXt") {
       const text = latin1.decode(body);
       const split = text.indexOf("\0");
@@ -76,6 +94,7 @@ export async function readPicture(buffer: ArrayBuffer): Promise<Picture> {
     at += 12 + length;
   }
   if (!manifest) throw new Error("not a scribble picture: no manifest");
+  if (manifest.version !== FORMAT_VERSION) throw new Error(`picture format ${manifest.version}, expected ${FORMAT_VERSION}`);
 
   const rows = await inflate(data);
   const stride = side / 8;
@@ -93,5 +112,5 @@ export function sideValues(picture: Picture, name: string): Float32Array {
   const entry = picture.manifest.side_table.find((e) => e.name === name);
   if (!entry) throw new Error(`side table has no ${name}`);
   const count = entry.shape.reduce((a, b) => a * b, 1);
-  return picture.sideTable.subarray(entry.offset / 4, entry.offset / 4 + count);
+  return picture.sideTable.subarray(entry.offset / 2, entry.offset / 2 + count);
 }

@@ -7,8 +7,9 @@ white is +scale, black is -scale. The picture is cut into squares one model
 width on a side, twelve per layer, in the order the model computes them. A
 manifest (text chunk) says which weights each square holds, and a side table
 (private chunk) carries the few numbers that are not one bit: embeddings and
-normalization gains. `load` rebuilds the model from the file alone, which is
-the proof that the picture is the model.
+normalization gains, as 16-bit floats to keep the file small. `load` rebuilds
+the model from the file alone, which is the proof that the picture is the
+model: the model the page runs is the one `load` returns.
 """
 
 from __future__ import annotations
@@ -27,7 +28,8 @@ import checkpoint
 from model import GPT, Config
 from vocab import Vocab
 
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
+SIDE_DTYPE = "<f2"  # little-endian 16-bit floats
 SIGNATURE = b"\x89PNG\r\n\x1a\n"
 MANIFEST_KEY = b"scribble"
 SIDE_CHUNK = b"sbTb"  # ancillary, private, safe to copy
@@ -153,7 +155,7 @@ def export(model: GPT, vocab: Vocab, path: Path) -> dict:
         if name in bit_names:
             continue
         side_index.append({"name": name, "shape": list(value.shape), "offset": len(side_table)})
-        side_table += value.numpy().astype("<f4").tobytes()
+        side_table += value.numpy().astype(SIDE_DTYPE).tobytes()
 
     manifest = {
         "version": FORMAT_VERSION,
@@ -173,14 +175,18 @@ def export(model: GPT, vocab: Vocab, path: Path) -> dict:
 def load(path: Path) -> tuple[GPT, Vocab]:
     """Rebuild a hardened model and its vocabulary from a picture alone."""
     bits, manifest, side_table = read_png(path)
+    if manifest["version"] != FORMAT_VERSION:
+        raise ValueError(
+            f"{path}: format {manifest['version']}, expected {FORMAT_VERSION}; export it again"
+        )
     if zlib.crc32(np.packbits(bits, axis=1).tobytes()) != manifest["bits_crc32"]:
         raise ValueError(f"{path}: weight bits do not match the checksum")
     model = GPT(Config(**manifest["config"])).eval()
     state = model.state_dict()
     for entry in manifest["side_table"]:
         count = int(np.prod(entry["shape"]))
-        values = np.frombuffer(side_table, "<f4", count, entry["offset"])
-        state[entry["name"]] = torch.from_numpy(values.reshape(entry["shape"]).copy())
+        values = np.frombuffer(side_table, SIDE_DTYPE, count, entry["offset"]).astype(np.float32)
+        state[entry["name"]] = torch.from_numpy(values.reshape(entry["shape"]))
     d = manifest["square"]
     for piece in manifest["pieces"]:
         square = torch.from_numpy(bits[piece["y"] : piece["y"] + d, piece["x"] : piece["x"] + d])

@@ -32,8 +32,21 @@ def test_picture_alone_reproduces_the_model(tmp_path):
     export.export(model, char_vocab(), path)
     restored, vocab = export.load(path)
     model.harden()
-    assert torch.equal(restored(ids), model(ids))
+    # The side numbers are stored as 16-bit floats, so the match is close, not exact.
+    assert torch.allclose(restored(ids), model(ids), atol=2e-2)
     assert vocab.tokens == char_vocab().tokens
+
+
+def test_exporting_a_loaded_picture_changes_nothing(tmp_path):
+    first, second = tmp_path / "first.png", tmp_path / "second.png"
+    export.export(trained_like(), char_vocab(), first)
+    restored, vocab = export.load(first)
+    restored_bits, _, restored_side = export.read_png(first)
+    for layer in restored.bit_layers():
+        layer.one_bit = True
+    export.export(restored, vocab, second)
+    bits, _, side = export.read_png(second)
+    assert np.array_equal(bits, restored_bits) and side == restored_side
 
 
 def test_flipping_one_pixel_changes_one_weight(tmp_path):
