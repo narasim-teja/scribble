@@ -19,6 +19,7 @@ export class StoryPanel {
     span.style.opacity = (0.5 + 0.5 * probability).toFixed(2);
     if (unexpected) span.className = "unexpected";
     this.caret.before(span);
+    this.markFull();
   }
 
   /** The story is over. It stays on screen until the next token arrives. */
@@ -29,5 +30,12 @@ export class StoryPanel {
   private clear(): void {
     this.element.replaceChildren(this.caret);
     this.finished = false;
+    this.markFull();
+  }
+
+  /** Tell the stylesheet whether the text has outgrown its space, so it fades the top only then. */
+  private markFull(): void {
+    const page = this.element.parentElement;
+    page?.classList.toggle("full", this.element.offsetHeight > page.clientHeight);
   }
 }

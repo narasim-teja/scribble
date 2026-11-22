@@ -74,8 +74,14 @@ button:disabled { color: var(--faint); cursor: default; }
   display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 1.5rem;
   padding: var(--gutter); padding-left: 0; min-height: 0; overflow: hidden;
 }
-/* Each story grows upward from the bottom of its half; old lines slide out of view. */
-.copy { display: flex; flex-direction: column; justify-content: flex-end; min-height: 0; overflow: hidden; }
+/* Each story grows upward from the bottom of its half; old lines fade out under its label. */
+.copy { display: flex; flex-direction: column; justify-content: flex-end; min-height: 0; }
+.label { flex: none; }
+.page {
+  display: flex; flex-direction: column; justify-content: flex-end; min-height: 0; overflow: hidden;
+  mask-image: linear-gradient(transparent, #000 1.6rem);
+}
+.page:not(.full) { mask-image: none; }
 .story { font-size: clamp(13px, 1.05vw, 16px); font-weight: 400; line-height: 1.7; white-space: pre-wrap; max-width: 44ch; }
 .story .caret { display: inline-block; width: 0.55em; height: 1.05em; background: var(--bone); vertical-align: text-bottom; margin-left: 1px; }
 #twin { color: var(--dim); }
@@ -84,15 +90,27 @@ button:disabled { color: var(--faint); cursor: default; }
 .note a { color: inherit; }
 #failure { position: absolute; inset: 0; display: grid; place-items: center; padding: 2rem; color: var(--dim); text-align: center; }
 
+/* Phones: the brain gets a stage of its own with nothing laid over it but its
+   name and the damage count. The tools sit under it, then your story. */
 @media (max-width: 820px) {
+  :root { --stage: min(52svh, 105vw); }
   body { overflow: auto; }
-  main { grid-template-columns: 1fr; grid-template-rows: 62svh auto; height: auto; min-height: 100%; }
-  .writing { padding: var(--gutter); grid-template-rows: auto auto auto; }
-  .copy { max-height: 14rem; }
-  .plate p { display: none; }
-  .chrome { grid-template: "plate" auto "gap" 1fr "readout" auto "hands" auto "view" auto / 1fr; gap: 0.5rem; }
-  .readout { text-align: left; justify-self: start; }
-  .view { justify-content: flex-start; }
-  .tools { flex-wrap: wrap; }
-  #hint { display: none; }
+  main { display: block; height: auto; }
+  .specimen { padding-top: var(--stage); }
+  canvas { inset: 0 0 auto; height: var(--stage); }
+  #loading, #failure { inset: 0 0 auto; height: var(--stage); }
+  .chrome { position: static; display: flex; flex-direction: column; gap: 0; padding: 0.4rem calc(var(--gutter) - 0.8em) 0; text-shadow: none; }
+  .plate, .readout { position: absolute; left: var(--gutter); text-shadow: 0 0 2px var(--room), 0 0 8px var(--room); }
+  .plate { top: var(--gutter); }
+  .plate p, #hint, #where { display: none; }
+  .readout { top: calc(var(--stage) - 3.4rem); text-align: left; }
+  .hands { order: 1; }
+  .view { order: 2; justify-content: flex-start; }
+  button, .size { min-height: 44px; }
+  .size { flex: 1; min-width: 0; }
+  .size input { flex: 1; width: auto; min-width: 0; }
+  .writing { display: flex; flex-direction: column; padding: 1rem var(--gutter) var(--gutter); overflow: visible; }
+  .writing .copy:first-child { order: 1; }
+  .writing .note { order: 2; }
+  .copy { max-height: 11.5rem; flex: none; }
 }
