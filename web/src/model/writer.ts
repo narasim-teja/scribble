@@ -21,7 +21,7 @@ import type { Picture } from "./picture";
 import { pick, probabilities, seededRandom } from "./sampler";
 
 const END_OF_STORY = 0; // token id, as in train/vocab.py
-const UNEXPECTED_BELOW = 0.08; // the healthy model gives the token less than this...
+const UNEXPECTED_BELOW = 0.02; // the healthy model gives the token less than one chance in fifty...
 const UNEXPECTED_RATIO = 3; // ...and less than a third of what the damaged model gave it
 const PEAK_DECAY = 0.995; // how slowly each square's brightness scale forgets old peaks
 const LONGEST_STORY = 400; // tokens; a damaged model may never end its story on its own
