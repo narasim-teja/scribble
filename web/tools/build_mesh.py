@@ -7,9 +7,9 @@ fetched by nilearn). It is a display surface only; nothing in it comes from
 the model. Each hemisphere also has a version inflated to a sphere, which
 gives every point an address. The weight picture's squares are laid on the
 part of that sphere that faces outward, like lines on a page: one row per
-layer from the top of the brain down, six squares along each row. Five rows
-of six suit the cortex, which is longer than it is tall, so weights come out
-close to square. The grid is then carried onto the folded surface. The inner face, hidden between the hemispheres,
+layer from the top of the brain down, six squares along each row. Row and
+column sizes are fitted so the squares stay close to square once carried
+onto the folded surface (see `fit_grid`). The inner face, hidden between the hemispheres,
 gets no weights.
 
 Writes `data/mesh.json` and `data/mesh.bin` (little-endian):
@@ -29,6 +29,7 @@ from nilearn import datasets, surface
 
 TILES_PER_HEMISPHERE = 6
 SEGMENTS = 56  # quads along a tile edge
+FIT_ROUNDS, FIT_STEP, FIT_SEGMENTS = 12, 0.5, 12  # see fit_grid
 TILE_INSET = 0.003  # share of a cell left as a seam on each edge
 REACH = 2.1  # tiles cover the sphere out to this angle (radians) from the outer side
 MM_PER_UNIT = 87.0  # the brain is about two units long
@@ -143,19 +144,58 @@ class Hemisphere:
         return out.reshape(*x.shape, 7)
 
 
-def tiles(hemispheres: dict[int, Hemisphere], layers: int) -> np.ndarray:
-    """Every weight tile: tile n shows square n of the picture."""
-    along = TILE_INSET + np.linspace(0, 1, SEGMENTS + 1) * (1 - 2 * TILE_INSET)
+def tiles(
+    hemispheres: dict[int, Hemisphere], layers: int, grid: tuple[np.ndarray, np.ndarray], segments: int
+) -> np.ndarray:
+    """Every weight tile: tile n shows square n of the picture.
+
+    `grid` holds the edges between columns and between rows, in the grid's
+    own -1..1 coordinates: columns run back to front, rows from the top down.
+    """
+    columns, rows = grid
+    along = TILE_INSET + np.linspace(0, 1, segments + 1) * (1 - 2 * TILE_INSET)
     b, a = np.meshgrid(along, along, indexing="ij")
     out = []
     for n in range(layers * TILES_PER_HEMISPHERE * 2):
         layer, slot = divmod(n, TILES_PER_HEMISPHERE * 2)
         side = -1 if slot < TILES_PER_HEMISPHERE else 1
         column = slot % TILES_PER_HEMISPHERE
-        x = 2 * (column + a) / TILES_PER_HEMISPHERE - 1  # along a row, back to front
-        y = 1 - 2 * (layer + b) / layers  # layers run from the top down
+        x = columns[column] + a * (columns[column + 1] - columns[column])
+        y = rows[layer] + b * (rows[layer + 1] - rows[layer])
         out.append(hemispheres[side].at(x, y))
     return np.stack(out)
+
+
+def stretch(tile_rows: np.ndarray, layers: int) -> np.ndarray:
+    """[layers, columns] width over height of each tile on the surface, averaged over hemispheres."""
+    points = tile_rows[..., :3]
+    width = np.linalg.norm(np.diff(points, axis=2), axis=-1).sum(axis=2).mean(axis=1)
+    height = np.linalg.norm(np.diff(points, axis=1), axis=-1).sum(axis=1).mean(axis=1)
+    ratio = (width / height).reshape(layers, 2, TILES_PER_HEMISPHERE)
+    return np.exp(np.log(ratio).mean(axis=1))
+
+
+def fit_grid(hemispheres: dict[int, Hemisphere], layers: int) -> tuple[np.ndarray, np.ndarray]:
+    """Column and row edges that keep tiles close to square on the folded surface.
+
+    Bending a square grid onto a round cap squeezes its edge rows and columns,
+    so equal steps give tiles up to 2.6 times wider than tall. Starting from
+    equal steps, each round narrows the columns that came out wide and
+    shortens the rows that came out tall, then measures again.
+    """
+    widths = np.full(TILES_PER_HEMISPHERE, 1.0)
+    heights = np.full(layers, 1.0)
+
+    def edges() -> tuple[np.ndarray, np.ndarray]:
+        columns = -1 + 2 * np.concatenate([[0], np.cumsum(widths)]) / widths.sum()
+        rows = 1 - 2 * np.concatenate([[0], np.cumsum(heights)]) / heights.sum()
+        return columns, rows
+
+    for _ in range(FIT_ROUNDS):
+        log_ratio = np.log(stretch(tiles(hemispheres, layers, edges(), FIT_SEGMENTS), layers))
+        widths *= np.exp(-FIT_STEP * log_ratio.mean(axis=0))
+        heights *= np.exp(FIT_STEP * log_ratio.mean(axis=1))
+    return edges()
 
 
 def scene_rows(rows: np.ndarray) -> np.ndarray:
@@ -174,7 +214,11 @@ def main() -> None:
     fsaverage = datasets.fetch_surf_fsaverage("fsaverage6")
     hemispheres = {-1: Hemisphere(fsaverage, "left", -1), 1: Hemisphere(fsaverage, "right", 1)}
 
-    tile_rows = scene_rows(tiles(hemispheres, args.layers))
+    grid = fit_grid(hemispheres, args.layers)
+    tile_mm = tiles(hemispheres, args.layers, grid, SEGMENTS)
+    ratios = stretch(tile_mm, args.layers)
+    print(f"tile width over height: {ratios.min():.2f} to {ratios.max():.2f}, median {np.median(ratios):.2f}")
+    tile_rows = scene_rows(tile_mm)
     tissue, faces, offset = [], [], 0
     for hemisphere in hemispheres.values():
         sunk = hemisphere.points - hemisphere.normals * TISSUE_SINK_MM
