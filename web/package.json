@@ -1,0 +1,21 @@
+{
+  "name": "scribble-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "check": "tsc --noEmit",
+    "test": "bun test",
+    "kernel": "cd kernel && cargo build --release && cp target/wasm32-unknown-unknown/release/scribble_kernel.wasm ../src/model/kernel.wasm"
+  },
+  "dependencies": {
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.187.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "@types/bun": "latest"
+  }
+}
