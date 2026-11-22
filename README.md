@@ -26,6 +26,11 @@ uv run python sample.py bpe512-4m --flip 0 0.001 0.01 0.05
 uv run pytest && uv run ruff check .
 ```
 
+## Credits
+
+The brain shape is a modified version of FreeSurfer's fsaverage6 surface, used
+under the FreeSurfer Software License (`web/public/licenses/fsaverage.txt`).
+
 ## The web page
 
 `web/` is a Vite and TypeScript project, run with Bun.
