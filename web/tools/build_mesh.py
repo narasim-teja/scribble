@@ -6,11 +6,15 @@ The shape is a real one: FreeSurfer's average cortical surface (fsaverage6,
 fetched by nilearn). It is a display surface only; nothing in it comes from
 the model. Each hemisphere also has a version inflated to a sphere, which
 gives every point an address. The weight picture's squares are laid on the
-part of that sphere that faces outward, like lines on a page: one row per
-layer from the top of the brain down, six squares along each row. Row and
-column sizes are fitted so the squares stay close to square once carried
-onto the folded surface (see `fit_grid`). The inner face, hidden between the hemispheres,
-gets no weights.
+part of that sphere that faces outward, in columns: one column per layer
+from the front of the brain to the back, six squares down each column on
+each hemisphere. Every layer therefore has squares on the side that faces
+the viewer, and the model computes from the forehead backward. (Rows per
+layer from the top down, tried first, left layer 1 over the crown and layer
+5 underneath, both out of sight.) Row and column sizes are fitted so the
+squares stay close to square once carried onto the folded surface (see
+`fit_grid`). The inner face, hidden between the hemispheres, gets no
+weights.
 
 Writes `data/mesh.json` and `data/mesh.bin` (little-endian):
   tiles   float32 [layers * 12, n, n, 7]  position, normal, groove depth
@@ -31,7 +35,11 @@ TILES_PER_HEMISPHERE = 6
 SEGMENTS = 56  # quads along a tile edge
 FIT_ROUNDS, FIT_STEP, FIT_SEGMENTS = 12, 0.5, 12  # see fit_grid
 TILE_INSET = 0.003  # share of a cell left as a seam on each edge
-REACH = 2.1  # tiles cover the sphere out to this angle (radians) from the outer side
+REACH = 2.4  # tiles cover the sphere out to this angle (radians) from the outer side
+# ...but only this share of it toward the front and back. Five columns by six
+# rows on a round patch would make every square wide; this narrows them, and
+# still reaches a little past the front and back tips of the brain.
+REACH_ALONG = 0.85
 MM_PER_UNIT = 87.0  # the brain is about two units long
 CENTRE_MM = np.array([0.0, -18.0, 15.0])
 TILE_LIFT_MM, TISSUE_SINK_MM = 0.25, 0.9
@@ -108,11 +116,11 @@ class Hemisphere:
     def at(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
         """[.., 7] position (mm), normal and groove at grid addresses in [-1, 1].
 
-        The grid square is bent into a disc (x toward the front, y up) and the
-        disc is wrapped over the outward-facing cap of the sphere.
+        The grid square is bent into an oval (x toward the front, y up) and the
+        oval is wrapped over the outward-facing cap of the sphere.
         """
         front, up, outward = self.frame
-        u, v = x * np.sqrt(1 - y * y / 2), y * np.sqrt(1 - x * x / 2)
+        u, v = REACH_ALONG * x * np.sqrt(1 - y * y / 2), y * np.sqrt(1 - x * x / 2)
         radius, around = np.hypot(u, v), np.arctan2(v, u)
         angle = 2 * np.arcsin(np.clip(radius, 0, 1) * np.sin(REACH / 2))  # equal-area
         direction = (
@@ -150,7 +158,8 @@ def tiles(
     """Every weight tile: tile n shows square n of the picture.
 
     `grid` holds the edges between columns and between rows, in the grid's
-    own -1..1 coordinates: columns run back to front, rows from the top down.
+    own -1..1 coordinates: columns (layers) run front to back, rows (the six
+    squares of a layer on one hemisphere) from the top down.
     """
     columns, rows = grid
     along = TILE_INSET + np.linspace(0, 1, segments + 1) * (1 - 2 * TILE_INSET)
@@ -159,15 +168,15 @@ def tiles(
     for n in range(layers * TILES_PER_HEMISPHERE * 2):
         layer, slot = divmod(n, TILES_PER_HEMISPHERE * 2)
         side = -1 if slot < TILES_PER_HEMISPHERE else 1
-        column = slot % TILES_PER_HEMISPHERE
-        x = columns[column] + a * (columns[column + 1] - columns[column])
-        y = rows[layer] + b * (rows[layer + 1] - rows[layer])
+        row = slot % TILES_PER_HEMISPHERE
+        x = columns[layer] + a * (columns[layer + 1] - columns[layer])
+        y = rows[row] + b * (rows[row + 1] - rows[row])
         out.append(hemispheres[side].at(x, y))
     return np.stack(out)
 
 
 def stretch(tile_rows: np.ndarray, layers: int) -> np.ndarray:
-    """[layers, columns] width over height of each tile on the surface, averaged over hemispheres."""
+    """[layers, rows] width over height of each tile on the surface, averaged over hemispheres."""
     points = tile_rows[..., :3]
     width = np.linalg.norm(np.diff(points, axis=2), axis=-1).sum(axis=2).mean(axis=1)
     height = np.linalg.norm(np.diff(points, axis=1), axis=-1).sum(axis=1).mean(axis=1)
@@ -183,18 +192,18 @@ def fit_grid(hemispheres: dict[int, Hemisphere], layers: int) -> tuple[np.ndarra
     equal steps, each round narrows the columns that came out wide and
     shortens the rows that came out tall, then measures again.
     """
-    widths = np.full(TILES_PER_HEMISPHERE, 1.0)
-    heights = np.full(layers, 1.0)
+    widths = np.full(layers, 1.0)
+    heights = np.full(TILES_PER_HEMISPHERE, 1.0)
 
     def edges() -> tuple[np.ndarray, np.ndarray]:
-        columns = -1 + 2 * np.concatenate([[0], np.cumsum(widths)]) / widths.sum()
+        columns = 1 - 2 * np.concatenate([[0], np.cumsum(widths)]) / widths.sum()
         rows = 1 - 2 * np.concatenate([[0], np.cumsum(heights)]) / heights.sum()
         return columns, rows
 
     for _ in range(FIT_ROUNDS):
         log_ratio = np.log(stretch(tiles(hemispheres, layers, edges(), FIT_SEGMENTS), layers))
-        widths *= np.exp(-FIT_STEP * log_ratio.mean(axis=0))
-        heights *= np.exp(FIT_STEP * log_ratio.mean(axis=1))
+        widths *= np.exp(-FIT_STEP * log_ratio.mean(axis=1))
+        heights *= np.exp(FIT_STEP * log_ratio.mean(axis=0))
     return edges()
 
 
