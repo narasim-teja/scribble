@@ -1,0 +1,15 @@
+[package]
+name = "scribble-kernel"
+version = "0.1.0"
+edition = "2021"
+description = "The inner loop of the Scribble engine: one-bit matrix times vector, compiled to WebAssembly."
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+opt-level = 3
+lto = true
+panic = "abort"
+strip = true
