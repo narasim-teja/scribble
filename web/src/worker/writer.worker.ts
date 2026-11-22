@@ -33,13 +33,14 @@ function tick(): void {
   }
   if (rereading) post({ type: "rereading", active: (rereading = false) });
 
-  const written = writer.write();
-  if (!written) {
-    post({ type: "story-end" });
-    return schedule(PAUSE_AFTER_STORY_MS);
+  const { mine, twin, restarted } = writer.write();
+  if (restarted) {
+    post({ type: "restart" });
+    return schedule(interval);
   }
-  post({ type: "token", ...written }, [written.activity.buffer]);
-  schedule(interval);
+  post({ type: "step", mine, twin }, mine ? [mine.activity.buffer] : []);
+  // Leave both finished stories on screen for a moment before the next pair.
+  schedule(mine || twin ? interval : PAUSE_AFTER_STORY_MS);
 }
 
 /** The Rust kernel if this browser can load it, otherwise the TypeScript one. */
