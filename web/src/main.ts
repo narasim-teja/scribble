@@ -14,6 +14,7 @@ import type { FromWorker, ToWorker } from "./worker/messages";
 const TOKENS_PER_SECOND = 5;
 const HEAL_FRAMES = 70; // frames a full heal is spread over
 const ZOOM_PER_WHEEL_UNIT = 0.0016;
+const SMALLEST_BRUSH_WEIGHTS = 1.5; // brush radius never shrinks below this many weights
 const TOUCH_SLOP_PIXELS = 8; // a finger must travel this far before it paints
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -78,7 +79,15 @@ async function start(): Promise<void> {
   let tool: "brush" | "move" = "brush";
   let healPerFrame = 0;
   let playing = true;
-  const brushRadius = () => Number($<HTMLInputElement>("size").value) / 100;
+  /**
+   * Brush radius in square widths. The slider sets it for the opening view;
+   * zooming in shrinks it in step, so it stays the same size on screen.
+   */
+  const brushRadius = () => {
+    const chosen = Number($<HTMLInputElement>("size").value) / 100;
+    const smallest = SMALLEST_BRUSH_WEIGHTS / picture.manifest.square;
+    return Math.max(smallest, chosen * Math.min(1, view.orbit.closeness));
+  };
 
   function setTool(next: typeof tool): void {
     tool = next;

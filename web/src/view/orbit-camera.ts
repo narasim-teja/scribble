@@ -61,6 +61,11 @@ export class OrbitCamera {
     this.camera.updateProjectionMatrix();
   }
 
+  /** Viewing distance as a share of the opening view's: 1 at home, smaller when zoomed in. */
+  get closeness(): number {
+    return this.distance / this.home.distance;
+  }
+
   /** True when the view is close enough that turning would swing the camera through the surface. */
   get isClose(): boolean {
     return this.anchored;
