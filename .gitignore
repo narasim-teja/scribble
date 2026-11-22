@@ -27,3 +27,8 @@ private/
 !web/src/model/kernel.wasm
 web/kernel/target/
 .wrangler/
+
+# working notes and assistant instructions, kept on the owner's machine
+docs/
+CLAUDE.md
+PRODUCT.md

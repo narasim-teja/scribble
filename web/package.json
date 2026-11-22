@@ -8,7 +8,8 @@
     "check": "tsc --noEmit",
     "test": "bun test",
     "kernel": "cd kernel && cargo build --release && cp target/wasm32-unknown-unknown/release/scribble_kernel.wasm ../src/model/kernel.wasm",
-    "deploy": "bun run build && wrangler deploy"
+    "deploy": "bun run build && wrangler deploy",
+    "data": "bun tools/fetch-data.ts"
   },
   "dependencies": {
     "three": "0.187.0"
