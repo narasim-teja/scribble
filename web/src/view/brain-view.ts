@@ -17,6 +17,9 @@ const SWAY = 0.28; // idle swing either side of the profile, radians
 const FOLD_SECONDS = 1.5;
 const HOME: Pose = { azimuth: -1.32, elevation: 0.16, distance: 4.5, target: [0, -0.1, -0.04] };
 const FACING_PICTURE: Pose = { azimuth: 0, elevation: 0, distance: 5.5, target: [-0.3, -0.12, 0] };
+/** The same on a narrow screen, where nothing sits beside the picture: centred, clear of the name above and the count below. */
+const FACING_PICTURE_NARROW: Pose = { azimuth: 0, elevation: 0, distance: 6, target: [0, -0.06, 0] };
+const NARROW_ASPECT = 1.25;
 
 /** What sits under the pointer: a square of the picture and a place inside it. */
 export interface Hit {
@@ -159,7 +162,21 @@ export class BrainView {
     if (unfolded === this.unfolded) return;
     this.unfolded = unfolded;
     if (unfolded) this.poseBeforeUnfold = this.orbit.pose;
-    this.orbit.glideTo(unfolded ? FACING_PICTURE : (this.poseBeforeUnfold ?? HOME));
+    const narrow = this.canvas.clientWidth / this.canvas.clientHeight < NARROW_ASPECT;
+    const facing = narrow ? FACING_PICTURE_NARROW : FACING_PICTURE;
+    this.orbit.glideTo(unfolded ? facing : (this.poseBeforeUnfold ?? HOME));
+  }
+
+  /** What is under the middle of the view, or under a point `dx, dy` pixels from it. */
+  pickCentre(dx = 0, dy = 0): Hit | null {
+    const box = this.canvas.getBoundingClientRect();
+    return this.pick({ clientX: box.left + box.width / 2 + dx, clientY: box.top + box.height / 2 + dy });
+  }
+
+  /** Drag the surface under the view by a pointer movement in pixels. */
+  slide(dx: number, dy: number): void {
+    const hit = this.pickCentre(-dx, -dy);
+    if (hit) this.orbit.follow(hit.point, hit.normal);
   }
 
   /** Fold back if needed and return the camera to where the page opened. */
