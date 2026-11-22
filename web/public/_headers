@@ -1,0 +1,4 @@
+# Files under /assets have a hash of their contents in their name, so a
+# browser may keep them for good. Everything else is checked on each visit.
+/assets/*
+  Cache-Control: public, max-age=31556952, immutable

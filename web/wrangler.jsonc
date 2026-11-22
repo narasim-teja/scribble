@@ -1,0 +1,10 @@
+// Hosting: Cloudflare Workers serving the built page as static files. There
+// is no Worker script; `bun run deploy` builds and uploads `dist/`.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "scribble",
+  "compatibility_date": "2026-11-01",
+  "assets": { "directory": "./dist" },
+  // Cloudflare creates the DNS record for this name on the first deploy.
+  "routes": [{ "pattern": "scribble.narasim.me", "custom_domain": true }]
+}

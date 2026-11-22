@@ -28,11 +28,23 @@ main {
   height: 100%;
 }
 .specimen { position: relative; min-height: 0; }
+/* Zoomed in, the surface fills the view and is bright. Shade its top and
+   bottom so the name, tools and count stay readable, and put away the
+   introduction, which has done its job by then. */
+.specimen::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.4s;
+  background:
+    linear-gradient(to bottom, var(--room) 4.5rem, transparent 9rem),
+    linear-gradient(to top, var(--room) 6rem, transparent 11rem);
+}
+.close .specimen::after { opacity: 1; }
+.plate p, #hint { transition: opacity 0.4s; }
+.close .plate p, .close #hint { opacity: 0; }
 canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
 canvas.moving { cursor: grab; }
 
 .chrome {
-  position: absolute; inset: var(--gutter); pointer-events: none;
+  position: absolute; inset: var(--gutter); pointer-events: none; z-index: 1;
   display: grid; gap: 1rem 1.5rem; align-items: end;
   text-shadow: 0 0 2px var(--room), 0 0 8px var(--room), 0 0 14px var(--room);
   grid-template: "plate view" auto "gap gap" 1fr "hands readout" auto / auto 1fr;
@@ -72,7 +84,7 @@ button:disabled { color: var(--faint); cursor: default; }
 
 .writing {
   display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 1.5rem;
-  padding: var(--gutter); padding-left: 0; min-height: 0; overflow: hidden;
+  padding: var(--gutter); padding-left: 1.5rem; min-height: 0; overflow: hidden;
 }
 /* Each story grows upward from the bottom of its half; old lines fade out under its label. */
 .copy { display: flex; flex-direction: column; justify-content: flex-end; min-height: 0; }
@@ -86,8 +98,19 @@ button:disabled { color: var(--faint); cursor: default; }
 .story .caret { display: inline-block; width: 0.55em; height: 1.05em; background: var(--bone); vertical-align: text-bottom; margin-left: 1px; }
 #twin { color: var(--dim); }
 #twin .caret { background: var(--dim); }
-.note { color: var(--faint); max-width: 44ch; font-size: 11px; }
-.note a { color: inherit; }
+/* The small print: one corner. About shows while pointed at or focused, and
+   goes away by itself; a tap shows it on a phone and a tap elsewhere hides it. */
+.about { position: relative; display: flex; justify-content: flex-end; gap: 1.4rem; color: var(--faint); font-size: 11px; }
+.about a, .why { color: inherit; cursor: default; text-decoration: none; }
+.about a { cursor: pointer; }
+.about a:hover, .why:hover, .why:focus { color: var(--bone); }
+.why:focus-visible, .about a:focus-visible { outline: 1px solid var(--bone); outline-offset: 3px; }
+.why [role="tooltip"] {
+  position: absolute; right: 0; bottom: calc(100% + 0.8rem); width: min(44ch, 100%);
+  padding: 1rem 1.1rem; background: var(--room); border: 1px solid var(--faint); color: var(--dim); line-height: 1.6;
+  opacity: 0; visibility: hidden; transition: opacity 0.15s, visibility 0.15s; pointer-events: none;
+}
+.why:hover [role="tooltip"], .why:focus [role="tooltip"] { opacity: 1; visibility: visible; }
 #failure { position: absolute; inset: 0; display: grid; place-items: center; padding: 2rem; color: var(--dim); text-align: center; }
 
 /* Phones: the brain gets a stage of its own with nothing laid over it but its
@@ -111,6 +134,14 @@ button:disabled { color: var(--faint); cursor: default; }
   .size input { flex: 1; width: auto; min-width: 0; }
   .writing { display: flex; flex-direction: column; padding: 1rem var(--gutter) var(--gutter); overflow: visible; }
   .writing .copy:first-child { order: 1; }
-  .writing .note { order: 2; }
+  .writing .about { order: 2; margin-top: 1.5rem; justify-content: flex-start; }
+  .why [role="tooltip"] { right: auto; left: 0; }
+  .specimen::after {
+    inset: 0 0 auto; height: var(--stage);
+    background:
+      linear-gradient(to bottom, var(--room) 3rem, transparent 6rem),
+      linear-gradient(to top, var(--room) 3.6rem, transparent 7rem);
+  }
+  .plate, .readout { z-index: 1; }
   .copy { max-height: 11.5rem; flex: none; }
 }

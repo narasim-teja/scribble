@@ -15,6 +15,7 @@ const TOKENS_PER_SECOND = 5;
 const HEAL_FRAMES = 70; // frames a full heal is spread over
 const ZOOM_PER_WHEEL_UNIT = 0.0016;
 const SMALLEST_BRUSH_WEIGHTS = 1.5; // brush radius never shrinks below this many weights
+const CLOSE_UP = 0.55; // nearer than this share of the opening distance, the page hides its introduction
 const TOUCH_SLOP_PIXELS = 8; // a finger must travel this far before it paints
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -59,7 +60,7 @@ async function start(): Promise<void> {
     } else if (data.type === "kernel") {
       document.documentElement.dataset.kernel = data.name;
     } else {
-      $("status").textContent = data.active ? "Your copy, reading its story again with the changed weights" : "Your copy";
+      $("status").textContent = data.active ? "Yours, rereading with the changed weights" : "Yours to scribble on";
     }
   });
   send({ type: "load", picture, tokensPerSecond: TOKENS_PER_SECOND, seed: Date.now() });
@@ -250,9 +251,11 @@ async function start(): Promise<void> {
       if (!view.weights.damaged) healPerFrame = 0;
     }
     view.frame(now, dt, calm);
+    document.body.classList.toggle("close", view.orbit.closeness < CLOSE_UP);
     requestAnimationFrame(frame);
   }
 
+  $("scale").textContent = `${Math.round(view.weights.total / 1e6)}M`;
   setTool("brush");
   apply({ indices: new Uint32Array(0), bits: new Uint8Array(0) });
   $("loading").hidden = true;

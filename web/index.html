@@ -4,6 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Scribble on the brain</title>
+<meta name="description" content="A smol language model you can damage by hand. Every pixel is one of its weights: paint on them and watch its writing fall apart.">
+<meta name="theme-color" content="#0b0a09">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="canonical" href="https://scribble.narasim.me/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://scribble.narasim.me/">
+<meta property="og:title" content="Scribble on the brain">
+<meta property="og:description" content="A smol language model you can damage by hand.">
+<meta property="og:image" content="https://scribble.narasim.me/preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,300..700&display=swap" rel="stylesheet">
@@ -15,10 +28,10 @@
     <div class="chrome">
       <div class="plate">
         <h1>Scribble on the brain</h1>
-        <p>Every dot on this surface is one weight of a small language model. The light is the model working out its next word.</p>
+        <p>A smol language model that lives in your browser. <span id="scale">16M</span> weights you can damage by hand.</p>
       </div>
       <div class="tools view" role="toolbar" aria-label="View">
-        <button id="fold" aria-pressed="false" title="Unfold the brain into the picture file it is made from (U)">File view</button>
+        <button id="fold" aria-pressed="false" title="Unfold the brain into the picture file it is made from (U)">Unfold</button>
         <button id="reset" title="Reset view (R)">Reset</button>
         <button id="sound" aria-pressed="false" title="Sound: a key for each letter, a hum for the network, a scratch for the brush (S)">Sound</button>
         <button id="pause" class="icon" aria-label="Pause" title="Pause or play (Space)">
@@ -27,7 +40,7 @@
         </button>
       </div>
       <div class="hands">
-        <p id="hint">Drag on the brain to damage it. The model runs from the forehead back, and damage near the front breaks the writing most. Scroll or pinch to zoom in until you can read single weights.</p>
+        <p id="hint">Drag to damage it. The forehead hurts most. Zoom in to read single weights.</p>
         <div class="tools" role="toolbar" aria-label="Tools">
           <button id="brush" aria-pressed="true" title="Brush (B)">Brush</button>
           <button id="move" aria-pressed="false" title="Move (M). Shift-drag also turns the brain.">Move</button>
@@ -46,14 +59,17 @@
   </section>
   <section class="writing">
     <div class="copy">
-      <p class="label">Untouched copy</p>
+      <p class="label">Untouched twin</p>
       <div class="page"><div id="twin" class="story" aria-live="off"></div></div>
     </div>
     <div class="copy">
-      <p class="label" id="status">Your copy</p>
+      <p class="label" id="status">Yours to scribble on</p>
       <div class="page"><div id="story" class="story" aria-live="off"></div></div>
     </div>
-    <p class="note">Both stories come from the model running in this tab. The untouched copy has the same weights as yours had at the start and rolls the same dice, so the two match until you paint. Amber letters are ones it would almost never write. The brain shape is only a surface to show the weights on: a modified FreeSurfer fsaverage6 surface (<a href="licenses/fsaverage.txt">licence</a>).</p>
+    <footer class="about">
+      <span class="why" tabindex="0" aria-describedby="about">About<span id="about" role="tooltip">A real language model, running in your browser. Every dot is one of its weights. Paint to scramble them and watch its writing break; Heal puts them back. The twin is the same model left alone, to compare. Amber marks what the twin would almost never write. The brain shape is only a surface to show the weights on (FreeSurfer fsaverage6, modified).</span></span>
+      <a href="licenses/fsaverage.txt">Licence</a>
+    </footer>
   </section>
 </main>
 <script type="module" src="/src/main.ts"></script>

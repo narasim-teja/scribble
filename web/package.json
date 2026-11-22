@@ -7,15 +7,17 @@
     "build": "tsc --noEmit && vite build",
     "check": "tsc --noEmit",
     "test": "bun test",
-    "kernel": "cd kernel && cargo build --release && cp target/wasm32-unknown-unknown/release/scribble_kernel.wasm ../src/model/kernel.wasm"
+    "kernel": "cd kernel && cargo build --release && cp target/wasm32-unknown-unknown/release/scribble_kernel.wasm ../src/model/kernel.wasm",
+    "deploy": "bun run build && wrangler deploy"
   },
   "dependencies": {
     "three": "0.187.0"
   },
   "devDependencies": {
+    "@types/bun": "latest",
     "@types/three": "0.187.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
-    "@types/bun": "latest"
+    "wrangler": "^4.166.0"
   }
 }

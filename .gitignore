@@ -26,3 +26,4 @@ private/
 # the built Rust kernel is small and committed, so the page builds without Rust
 !web/src/model/kernel.wasm
 web/kernel/target/
+.wrangler/
