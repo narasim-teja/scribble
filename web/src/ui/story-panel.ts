@@ -9,10 +9,10 @@ export class StoryPanel {
   }
 
   /**
-   * Add a token. It is dimmer the less sure the model was, and amber when a
-   * healthy copy of the model would almost never have written it.
+   * Add a token. It is dimmer the less sure the model was, and amber when
+   * `unexpected`: a healthy copy would almost never have written it.
    */
-  add(text: string, probability: number, unexpected: boolean): void {
+  add(text: string, probability: number, unexpected = false): void {
     if (this.finished) this.clear();
     const span = document.createElement("span");
     span.textContent = text;
@@ -21,7 +21,7 @@ export class StoryPanel {
     this.caret.before(span);
   }
 
-  /** The story ended. It stays on screen until the next one starts. */
+  /** The story is over. It stays on screen until the next token arrives. */
   finish(): void {
     this.finished = true;
   }

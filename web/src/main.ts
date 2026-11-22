@@ -2,6 +2,8 @@
 // the story panel and the controls.
 
 import "./styles.css";
+import { TonePlayer } from "./audio/tone-player";
+import { voice } from "./audio/voice";
 import { readPicture } from "./model/picture";
 import { StoryPanel } from "./ui/story-panel";
 import type { MeshMeta } from "./view/brain-geometry";
@@ -30,7 +32,9 @@ async function start(): Promise<void> {
   ]);
   const canvas = $<HTMLCanvasElement>("view");
   const view = new BrainView(canvas, picture, meshMeta, meshData);
-  const story = new StoryPanel($("story"));
+  const mine = new StoryPanel($("story"));
+  const twin = new StoryPanel($("twin"));
+  const tones = new TonePlayer();
   const { pieces } = picture.manifest;
 
   // ---- the model ---------------------------------------------------------
@@ -38,15 +42,20 @@ async function start(): Promise<void> {
   const send = (message: ToWorker, transfer: Transferable[] = []) => worker.postMessage(message, transfer);
   const seconds = () => performance.now() / 1000;
   worker.addEventListener("message", ({ data }: MessageEvent<FromWorker>) => {
-    if (data.type === "token") {
-      story.add(data.text, data.probability, data.unexpected);
-      view.light.show(data.activity, seconds(), 1 / TOKENS_PER_SECOND);
-    } else if (data.type === "story-end") {
-      story.finish();
+    if (data.type === "step") {
+      if (data.twin) twin.add(data.twin.text, data.twin.probability);
+      if (data.mine) {
+        mine.add(data.mine.text, data.mine.probability, data.mine.unexpected);
+        view.light.show(data.mine.activity, seconds(), 1 / TOKENS_PER_SECOND);
+        tones.play(voice(data.mine.id, data.mine.probability, data.mine.expected));
+      }
+    } else if (data.type === "restart") {
+      mine.finish();
+      twin.finish();
     } else if (data.type === "kernel") {
       document.documentElement.dataset.kernel = data.name;
     } else {
-      $("status").textContent = data.active ? "Reading the story again with the changed weights" : "The model is writing";
+      $("status").textContent = data.active ? "Your copy, reading its story again with the changed weights" : "Your copy";
     }
   });
   send({ type: "load", picture, tokensPerSecond: TOKENS_PER_SECOND, seed: Date.now() });
@@ -114,6 +123,12 @@ async function start(): Promise<void> {
     $("pause").classList.toggle("paused", !playing);
   });
 
+  $("sound").addEventListener("click", async () => {
+    await tones.setEnabled(!tones.isEnabled);
+    $("sound").setAttribute("aria-pressed", String(tones.isEnabled));
+    $("sound").textContent = tones.isEnabled ? "Sound on" : "Sound off";
+  });
+
   window.addEventListener("keydown", (event: KeyboardEvent) => {
     if (event.metaKey || event.ctrlKey || event.target instanceof HTMLInputElement) return;
     const size = $<HTMLInputElement>("size");
@@ -123,6 +138,7 @@ async function start(): Promise<void> {
       h: () => $("heal").click(),
       u: () => $("fold").click(),
       r: () => $("reset").click(),
+      s: () => $("sound").click(),
       " ": () => $("pause").click(),
       "[": () => size.stepDown(2),
       "]": () => size.stepUp(2),

@@ -20,6 +20,7 @@
       <div class="tools view" role="toolbar" aria-label="View">
         <button id="fold" aria-pressed="false" title="Unfold (U)">Unfold to the file</button>
         <button id="reset" title="Reset view (R)">Reset view</button>
+        <button id="sound" aria-pressed="false" title="Sound (S)">Sound off</button>
         <button id="pause" class="icon" aria-label="Pause" title="Pause or play (Space)">
           <svg class="bars" viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="1.5" width="2.8" height="9"/><rect x="7.2" y="1.5" width="2.8" height="9"/></svg>
           <svg class="arrow" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z"/></svg>
@@ -44,9 +45,15 @@
     <div id="failure" hidden></div>
   </section>
   <section class="writing">
-    <p class="label" id="status">The model is writing</p>
-    <div id="story" aria-live="off"></div>
-    <p class="note">The weights, the light and the story all come from the model running in this tab. Amber letters are ones an undamaged copy would almost never write. The brain shape is only a surface to show the weights on.</p>
+    <div class="copy">
+      <p class="label">Untouched copy</p>
+      <div id="twin" class="story" aria-live="off"></div>
+    </div>
+    <div class="copy">
+      <p class="label" id="status">Your copy</p>
+      <div id="story" class="story" aria-live="off"></div>
+    </div>
+    <p class="note">Both stories come from the model running in this tab. The untouched copy has the same weights as yours had at the start and rolls the same dice, so the two match until you paint. Amber letters are ones it would almost never write. The brain shape is only a surface to show the weights on: a modified FreeSurfer fsaverage6 surface (<a href="licenses/fsaverage.txt">licence</a>).</p>
   </section>
 </main>
 <script type="module" src="/src/main.ts"></script>
