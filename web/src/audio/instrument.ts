@@ -1,7 +1,8 @@
 // Makes the sounds described in sounds.ts with the Web Audio API. Everything
 // is built from noise and sine waves here, so there are no sound files to
-// load or license. Browsers only allow sound after a click, so nothing is
-// created until `setEnabled(true)` is called from one.
+// load or license. Browsers only allow sound after the visitor touches the
+// page, so nothing is created until `setEnabled(true)` is called from a
+// click, tap or key press.
 
 import type { Key } from "./sounds";
 
@@ -22,21 +23,25 @@ export class Instrument {
   /** @param makeContext where the sound goes; a preview can pass an offline one */
   constructor(private readonly makeContext: () => BaseAudioContext = () => new AudioContext()) {}
 
-  get isEnabled(): boolean {
-    return this.enabled;
+  /** True once the browser has let the sound start. */
+  get isRunning(): boolean {
+    return this.enabled && this.context?.state === "running";
   }
 
-  /** Turn sound on or off. Must be called from a click or key press to turn on. */
-  async setEnabled(enabled: boolean): Promise<void> {
+  /**
+   * Turn sound on or off. Must be called from a click, tap or key press to
+   * turn on.
+   * @param insist the visitor asked for sound by name, so play it even on an
+   *   iPhone with the ring switch set to silent. Sound that starts by itself
+   *   leaves this off and stays quiet on a silenced phone.
+   */
+  async setEnabled(enabled: boolean, insist = false): Promise<void> {
     this.enabled = enabled;
     const live = () => (this.context instanceof AudioContext ? this.context : null);
     if (!enabled) return void (await live()?.suspend());
-    if (!this.context) {
-      // Lets the sound play on an iPhone with the ring switch set to silent.
-      const session = (navigator as { audioSession?: { type: string } }).audioSession;
-      if (session) session.type = "playback";
-      this.build(this.makeContext());
-    }
+    const session = (navigator as { audioSession?: { type: string } }).audioSession;
+    if (session) session.type = insist ? "playback" : "ambient";
+    if (!this.context) this.build(this.makeContext());
     await live()?.resume();
   }
 

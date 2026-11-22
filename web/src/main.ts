@@ -17,9 +17,27 @@ const ZOOM_PER_WHEEL_UNIT = 0.0016;
 const SMALLEST_BRUSH_WEIGHTS = 1.5; // brush radius never shrinks below this many weights
 const CLOSE_UP = 0.55; // nearer than this share of the opening distance, the page hides its introduction
 const TOUCH_SLOP_PIXELS = 8; // a finger must travel this far before it paints
+const SOUND_KEY = "scribble.sound"; // "off" once the visitor has muted the page
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+
+/** A small choice kept in this browser between visits. Storage can be blocked; then nothing is kept. */
+function recall(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function remember(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Private windows and locked-down browsers refuse; the choice then lasts for this visit only.
+  }
+}
 
 async function fetchOk(path: string): Promise<Response> {
   const response = await fetch(path);
@@ -136,9 +154,23 @@ async function start(): Promise<void> {
     $("pause").classList.toggle("paused", !playing);
   });
 
+  // Sound is on unless the visitor has turned it off before. A browser will
+  // not play anything until the page is touched, so it starts with the first
+  // tap, click or key press, whatever that happens to be.
+  let wantSound = recall(SOUND_KEY) !== "off";
+  $("sound").setAttribute("aria-pressed", String(wantSound));
+  const wakeEvents = ["pointerdown", "pointerup", "keydown", "click"] as const;
+  function wakeSound(): void {
+    if (wantSound && !sounds.isRunning) void sounds.setEnabled(true);
+    if (sounds.isRunning || !wantSound) for (const type of wakeEvents) window.removeEventListener(type, wakeSound, true);
+  }
+  for (const type of wakeEvents) window.addEventListener(type, wakeSound, true);
+
   $("sound").addEventListener("click", async () => {
-    await sounds.setEnabled(!sounds.isEnabled);
-    $("sound").setAttribute("aria-pressed", String(sounds.isEnabled));
+    wantSound = !wantSound;
+    remember(SOUND_KEY, wantSound ? "on" : "off");
+    $("sound").setAttribute("aria-pressed", String(wantSound));
+    await sounds.setEnabled(wantSound, true);
   });
 
   window.addEventListener("keydown", (event: KeyboardEvent) => {
