@@ -1,0 +1,19 @@
+[project]
+name = "scribble-train"
+version = "0.0.0"
+description = "Trains the one-bit story model and exports it as an image."
+requires-python = ">=3.12,<3.13"
+dependencies = ["torch", "numpy", "tokenizers", "huggingface_hub"]
+
+[dependency-groups]
+dev = ["pytest", "ruff"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
