@@ -1,0 +1,28 @@
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# Training data and outputs (large, reproducible)
+train/data/
+train/runs/
+
+# Web
+node_modules/
+dist/
+
+# Build outputs
+*.wasm
+.DS_Store
+.claude/settings.local.json
+
+# the model picture and brain mesh the page loads (built, see README)
+web/public/data/
+
+# personal scratch: clips, screenshots, notes
+private/
+
+# the built Rust kernel is small and committed, so the page builds without Rust
+!web/src/model/kernel.wasm
+web/kernel/target/
