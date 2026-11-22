@@ -1,0 +1,92 @@
+/* One page, one stylesheet. Colours are tokens on :root; amber means damage and nothing else. */
+
+:root {
+  --room: #0b0a09;
+  --bone: oklch(0.9 0.02 85);
+  --dim: oklch(0.68 0.015 80);
+  --faint: oklch(0.42 0.01 75);
+  --amber: oklch(0.78 0.17 68);
+  --gutter: clamp(16px, 2.4vw, 36px);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; margin: 0; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+/* On html, not body: the build's CSS minifier folds a stretch on the same
+   rule into the font shorthand, which browsers then reject. */
+html { font-stretch: 87.5%; }
+body {
+  background: var(--room);
+  color: var(--bone);
+  font: 300 13px/1.6 "Martian Mono", ui-monospace, monospace;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 30rem);
+  height: 100%;
+}
+.specimen { position: relative; min-height: 0; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+canvas.moving { cursor: grab; }
+
+.chrome {
+  position: absolute; inset: var(--gutter); pointer-events: none;
+  display: grid; gap: 1rem 1.5rem; align-items: end;
+  text-shadow: 0 0 2px var(--room), 0 0 8px var(--room), 0 0 14px var(--room);
+  grid-template: "plate view" auto "gap gap" 1fr "hands readout" auto / auto 1fr;
+}
+.plate { grid-area: plate; max-width: 34ch; align-self: start; }
+.view { grid-area: view; align-self: start; justify-content: flex-end; flex-wrap: wrap; }
+.hands { grid-area: hands; display: grid; gap: 0.8rem; }
+.readout { grid-area: readout; position: relative; justify-self: end; }
+h1 { font-size: 13px; font-weight: 600; letter-spacing: 0.02em; }
+.plate p { color: var(--dim); margin-top: 0.5em; }
+
+.tools { display: flex; gap: 0.25rem; pointer-events: auto; }
+button {
+  font: inherit; font-weight: 500; color: var(--dim);
+  background: none; border: 1px solid transparent; border-radius: 2px;
+  padding: 0.45em 0.8em; cursor: pointer; white-space: nowrap;
+}
+button:hover { color: var(--bone); }
+button:focus-visible { outline: 1px solid var(--bone); outline-offset: 2px; }
+button[aria-pressed="true"] { color: var(--room); background: var(--bone); }
+button:disabled { color: var(--faint); cursor: default; }
+.icon { display: grid; place-items: center; padding-inline: 0.7em; }
+.icon svg { width: 12px; height: 12px; fill: currentColor; }
+.icon .arrow, .icon.paused .bars { display: none; }
+.icon.paused .arrow { display: block; }
+.readout { text-align: right; white-space: nowrap; }
+.size { display: flex; align-items: center; gap: 0.6em; color: var(--dim); padding: 0 0.8em; font-weight: 500; }
+.size input { width: 5.5rem; accent-color: var(--bone); }
+#hint { color: var(--bone); max-width: 38ch; }
+#loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); pointer-events: none; }
+.label { color: var(--faint); font-size: 11px; margin-bottom: 0.9rem; }
+#story .unexpected { color: var(--amber); }
+#count { color: var(--dim); font-variant-numeric: tabular-nums; }
+#damage { font-size: clamp(18px, 2.2vw, 30px); font-weight: 300; line-height: 1.1; font-variant-numeric: tabular-nums; }
+#damage.hurt { color: var(--amber); }
+#where { color: var(--dim); position: absolute; right: 0; bottom: 100%; }
+
+.writing {
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: var(--gutter); padding-left: 0; min-height: 0; overflow: hidden;
+}
+#story { font-size: clamp(14px, 1.15vw, 17px); font-weight: 400; line-height: 1.75; white-space: pre-wrap; max-width: 44ch; }
+#story .caret { display: inline-block; width: 0.55em; height: 1.05em; background: var(--bone); vertical-align: text-bottom; margin-left: 1px; }
+.note { color: var(--faint); margin-top: 2rem; max-width: 44ch; font-size: 11px; }
+#failure { position: absolute; inset: 0; display: grid; place-items: center; padding: 2rem; color: var(--dim); text-align: center; }
+
+@media (max-width: 820px) {
+  body { overflow: auto; }
+  main { grid-template-columns: 1fr; grid-template-rows: 62svh auto; height: auto; min-height: 100%; }
+  .writing { padding: var(--gutter); justify-content: flex-start; }
+  .plate p { display: none; }
+  .chrome { grid-template: "plate" auto "gap" 1fr "readout" auto "hands" auto "view" auto / 1fr; gap: 0.5rem; }
+  .readout { text-align: left; }
+  .view { justify-content: flex-start; }
+  .tools { flex-wrap: wrap; }
+  #hint { display: none; }
+}

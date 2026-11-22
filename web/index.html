@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scribble on the brain</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,300..700&display=swap" rel="stylesheet">
+</head>
+<body>
+<main>
+  <section class="specimen">
+    <canvas id="view" aria-label="A brain whose surface is the weights of a language model"></canvas>
+    <div class="chrome">
+      <div class="plate">
+        <h1>Scribble on the brain</h1>
+        <p>Every dot on this surface is one weight of a small language model. The light is the model working out its next word.</p>
+      </div>
+      <div class="tools view" role="toolbar" aria-label="View">
+        <button id="fold" aria-pressed="false" title="Unfold (U)">Unfold to the file</button>
+        <button id="reset" title="Reset view (R)">Reset view</button>
+        <button id="pause" class="icon" aria-label="Pause" title="Pause or play (Space)">
+          <svg class="bars" viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="1.5" width="2.8" height="9"/><rect x="7.2" y="1.5" width="2.8" height="9"/></svg>
+          <svg class="arrow" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z"/></svg>
+        </button>
+      </div>
+      <div class="hands">
+        <p id="hint">Drag on the brain to damage it. Scroll or pinch to zoom in until you can read single weights.</p>
+        <div class="tools" role="toolbar" aria-label="Tools">
+          <button id="brush" aria-pressed="true" title="Brush (B)">Brush</button>
+          <button id="move" aria-pressed="false" title="Move (M). Shift-drag also turns the brain.">Move</button>
+          <label class="size" title="Brush size ([ and ])">Size <input id="size" type="range" min="3" max="25" value="9" aria-label="Brush size"></label>
+          <button id="heal" disabled title="Heal (H)">Heal</button>
+        </div>
+      </div>
+      <div class="readout">
+        <div id="where"></div>
+        <div id="damage">0.00% damaged</div>
+        <div id="count"></div>
+      </div>
+    </div>
+    <div id="loading">Loading the model picture</div>
+    <div id="failure" hidden></div>
+  </section>
+  <section class="writing">
+    <p class="label" id="status">The model is writing</p>
+    <div id="story" aria-live="off"></div>
+    <p class="note">The weights, the light and the story all come from the model running in this tab. Amber letters are ones an undamaged copy would almost never write. The brain shape is only a surface to show the weights on.</p>
+  </section>
+</main>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
