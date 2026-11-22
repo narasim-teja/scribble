@@ -2,8 +2,8 @@
 // the story panel and the controls.
 
 import "./styles.css";
-import { TonePlayer } from "./audio/tone-player";
-import { voice } from "./audio/voice";
+import { Instrument } from "./audio/instrument";
+import { Hum, keys, scratch } from "./audio/sounds";
 import { readPicture } from "./model/picture";
 import { StoryPanel } from "./ui/story-panel";
 import type { MeshMeta } from "./view/brain-geometry";
@@ -14,6 +14,7 @@ import type { FromWorker, ToWorker } from "./worker/messages";
 const TOKENS_PER_SECOND = 5;
 const HEAL_FRAMES = 70; // frames a full heal is spread over
 const ZOOM_PER_WHEEL_UNIT = 0.0016;
+const TOUCH_SLOP_PIXELS = 8; // a finger must travel this far before it paints
 const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -34,7 +35,8 @@ async function start(): Promise<void> {
   const view = new BrainView(canvas, picture, meshMeta, meshData);
   const mine = new StoryPanel($("story"));
   const twin = new StoryPanel($("twin"));
-  const tones = new TonePlayer();
+  const sounds = new Instrument();
+  const hum = new Hum();
   const { pieces } = picture.manifest;
 
   // ---- the model ---------------------------------------------------------
@@ -47,7 +49,8 @@ async function start(): Promise<void> {
       if (data.mine) {
         mine.add(data.mine.text, data.mine.probability, data.mine.unexpected);
         view.light.show(data.mine.activity, seconds(), 1 / TOKENS_PER_SECOND);
-        tones.play(voice(data.mine.id, data.mine.probability, data.mine.expected));
+        sounds.type(keys(data.mine.text, data.mine.probability, data.mine.unexpected, 1 / TOKENS_PER_SECOND));
+        sounds.setHum(hum.level(data.mine.activity));
       }
     } else if (data.type === "restart") {
       mine.finish();
@@ -60,8 +63,9 @@ async function start(): Promise<void> {
   });
   send({ type: "load", picture, tokensPerSecond: TOKENS_PER_SECOND, seed: Date.now() });
 
-  /** Tell the model about weights the page just changed. */
-  function apply(change: Change): void {
+  /** Tell the model about weights the page just changed, by the brush or by healing. */
+  function apply(change: Change, healing = false): void {
+    sounds.scratch(scratch(change.indices.length), healing);
     if (change.indices.length) send({ type: "set", ...change }, [change.indices.buffer, change.bits.buffer]);
     const { damaged, total } = view.weights;
     $("damage").textContent = `${((100 * damaged) / total).toFixed(2)}% damaged`;
@@ -105,7 +109,6 @@ async function start(): Promise<void> {
   function setUnfolded(unfolded: boolean): void {
     view.setUnfolded(unfolded);
     $("fold").setAttribute("aria-pressed", String(unfolded));
-    $("fold").textContent = unfolded ? "Fold back onto the brain" : "Unfold to the file";
   }
 
   $("brush").addEventListener("click", () => setTool("brush"));
@@ -124,9 +127,8 @@ async function start(): Promise<void> {
   });
 
   $("sound").addEventListener("click", async () => {
-    await tones.setEnabled(!tones.isEnabled);
-    $("sound").setAttribute("aria-pressed", String(tones.isEnabled));
-    $("sound").textContent = tones.isEnabled ? "Sound on" : "Sound off";
+    await sounds.setEnabled(!sounds.isEnabled);
+    $("sound").setAttribute("aria-pressed", String(sounds.isEnabled));
   });
 
   window.addEventListener("keydown", (event: KeyboardEvent) => {
@@ -151,7 +153,10 @@ async function start(): Promise<void> {
 
   // ---- pointer -----------------------------------------------------------
   const fingers = new Map<number, PointerEvent>();
-  let drag: "paint" | "orbit" | null = null;
+  // A finger that has landed but not yet moved is "waiting": it paints only
+  // once it travels, so the first finger of a pinch does no damage.
+  let drag: "paint" | "orbit" | "waiting" | null = null;
+  let landed: PointerEvent | null = null;
   let pinch = 0;
   const spread = () => {
     const [a, b] = [...fingers.values()];
@@ -168,18 +173,31 @@ async function start(): Promise<void> {
     }
     const hit = pick(event);
     drag = tool === "brush" && event.button === 0 && !event.shiftKey && hit ? "paint" : "orbit";
-    if (drag === "paint" && hit) paint(hit);
+    if (drag === "paint" && event.pointerType === "touch") {
+      drag = "waiting";
+      landed = event;
+    } else if (drag === "paint" && hit) paint(hit);
   });
 
   canvas.addEventListener("pointermove", (event) => {
     const before = fingers.get(event.pointerId);
     if (before) fingers.set(event.pointerId, event);
     if (fingers.size === 2) {
-      view.orbit.zoom(pinch / spread());
+      const [a, b] = [...fingers.values()];
+      const between = { clientX: (a.clientX + b.clientX) / 2, clientY: (a.clientY + b.clientY) / 2 };
+      view.orbit.zoom(pinch / spread(), pick(between) ?? view.pickCentre());
       pinch = spread();
     }
-    if (drag === "orbit" && before && !view.isUnfolded) {
-      view.orbit.orbit(event.clientX - before.clientX, event.clientY - before.clientY);
+    if (drag === "orbit" && before) {
+      const dx = event.clientX - before.clientX, dy = event.clientY - before.clientY;
+      // Far away a drag turns the brain. Close up, and on the flat picture,
+      // it slides the surface instead.
+      if (view.isUnfolded || view.orbit.isClose) view.slide(dx, dy);
+      else view.orbit.orbit(dx, dy);
+    }
+    if (drag === "waiting" && landed) {
+      const travelled = Math.hypot(event.clientX - landed.clientX, event.clientY - landed.clientY);
+      if (travelled > TOUCH_SLOP_PIXELS) drag = "paint";
     }
     const hit = fingers.size < 2 ? pick(event) : null;
     describe(hit);
@@ -189,6 +207,9 @@ async function start(): Promise<void> {
   for (const type of ["pointerup", "pointercancel", "pointerleave"] as const) {
     canvas.addEventListener(type, (event) => {
       fingers.delete(event.pointerId);
+      // A tap that never moved paints one dab where it landed.
+      const tapped = type === "pointerup" && drag === "waiting" ? pick(event) : null;
+      if (tapped) paint(tapped);
       if (!fingers.size) drag = null;
       if (type === "pointerleave") describe(null);
     });
@@ -198,14 +219,14 @@ async function start(): Promise<void> {
     "wheel",
     (event) => {
       event.preventDefault();
-      view.orbit.zoom(Math.exp(event.deltaY * ZOOM_PER_WHEEL_UNIT), pick(event));
+      view.orbit.zoom(Math.exp(event.deltaY * ZOOM_PER_WHEEL_UNIT), pick(event) ?? view.pickCentre());
     },
     { passive: false },
   );
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
   /** `view.pick` for a pointer or wheel event. */
-  function pick(event: MouseEvent): Hit | null {
+  function pick(event: { clientX: number; clientY: number }): Hit | null {
     return view.pick(event);
   }
 
@@ -216,7 +237,7 @@ async function start(): Promise<void> {
     const dt = Math.min(0.1, now - last);
     last = now;
     if (healPerFrame) {
-      apply(view.weights.heal(healPerFrame));
+      apply(view.weights.heal(healPerFrame), true);
       if (!view.weights.damaged) healPerFrame = 0;
     }
     view.frame(now, dt, calm);
