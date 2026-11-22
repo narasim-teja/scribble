@@ -26,7 +26,9 @@ uv run python sample.py bpe512-4m --flip 0 0.001 0.01 0.05
 uv run pytest && uv run ruff check .
 ```
 
-## Credits
+## Licence and credits
+
+The code is under the MIT licence (`LICENSE`).
 
 The brain shape is a modified version of FreeSurfer's fsaverage6 surface, used
 under the FreeSurfer Software License (`web/public/licenses/fsaverage.txt`).
