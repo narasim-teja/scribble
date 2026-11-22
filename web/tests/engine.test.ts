@@ -116,11 +116,13 @@ describe("engine", () => {
     expect(after.some((value, i) => Math.abs(value - before[i]) > 1e-6)).toBe(true);
   });
 
-  // The trained model is large and git-ignored, so this runs only where it exists.
-  const trained = here("../../train/runs/bpe512-4m/brain.png");
-  it.skipIf(!existsSync(trained))("matches Python on the trained 4M model", async () => {
-    const { picture, reference } = await load(trained);
-    expect(worstError(new Engine(picture), reference)).toBeLessThan(TOLERANCE);
-    expect(worstError(new Engine(picture, { kernel: rust }), reference)).toBeLessThan(TOLERANCE);
-  });
+  // The trained models are large and git-ignored, so these run only where they exist.
+  for (const run of ["bpe512-4m", "bpe512-16m"]) {
+    const trained = here(`../../train/runs/${run}/brain.png`);
+    it.skipIf(!existsSync(trained))(`matches Python on the trained ${run} model`, async () => {
+      const { picture, reference } = await load(trained);
+      expect(worstError(new Engine(picture), reference)).toBeLessThan(TOLERANCE);
+      expect(worstError(new Engine(picture, { kernel: rust }), reference)).toBeLessThan(TOLERANCE);
+    });
+  }
 });
