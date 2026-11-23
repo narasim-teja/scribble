@@ -41,7 +41,8 @@ def main() -> None:
     device = args.device or checkpoint.pick_device()
     for fraction in args.flip:
         model, vocab = checkpoint.load(checkpoint.RUNS_DIR / args.name, device)
-        model.harden()
+        if model.cfg.one_bit:  # a float twin keeps its real weights; a flip negates one
+            model.harden()
         flipped = flip_bits(model, fraction, torch.Generator().manual_seed(args.seed))
         total, _ = model.count_weights()
         print(f"\n=== {args.name}: {flipped:,} of {total:,} bits flipped ({fraction:.2%}) ===")
