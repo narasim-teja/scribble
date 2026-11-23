@@ -103,6 +103,8 @@ button:disabled { color: var(--faint); cursor: default; }
 .about { position: relative; display: flex; justify-content: flex-end; gap: 1.4rem; color: var(--faint); font-size: 11px; }
 .about a, .why { color: inherit; cursor: default; text-decoration: none; }
 .about a { cursor: pointer; }
+.source { display: grid; place-items: center; }
+.source svg { width: 14px; height: 14px; fill: currentColor; }
 .about a:hover, .why:hover, .why:focus { color: var(--bone); }
 .why:focus-visible, .about a:focus-visible { outline: 1px solid var(--bone); outline-offset: 3px; }
 .why [role="tooltip"] {
