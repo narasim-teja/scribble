@@ -43,6 +43,12 @@ Everything on the page comes from the model. Nothing is faked for effect.
   (0.61 to 0.63).
 - With random damage everywhere: about 1% of weights flipped keeps it fluent
   but changes the story, 2 to 3% breaks words, 5% leaves fragments.
+- What one bit costs: a float twin (same shape, data and 12 hours) reaches
+  0.494 bits per character against 0.605, so the one-bit model is 23% worse
+  and 22 times smaller (2.8 MB against 63 MB).
+- The float twin is no tougher. With the same share of weights negated it
+  loses more at every level, and by 5% the two score the same (1.41 and
+  1.38). `train/curve.py` prints the curve.
 
 ## Run the page
 
@@ -68,6 +74,7 @@ M2 Max; a 4M one that still writes stories takes 2.
     uv run python train.py --vocab bpe512 --name mine --minutes 120
     uv run python sample.py mine --flip 0 0.01 0.03 0.05   # stories, healthy and damaged
     uv run python lesion.py mine           # which part of the model matters
+    uv run python curve.py mine            # score as more weights are damaged
     uv run python export.py mine           # write runs/mine/brain.png
     cp runs/mine/brain.png ../web/public/data/
 
