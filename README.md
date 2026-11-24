@@ -2,6 +2,8 @@
 
 A smol language model you can damage by hand. **[scribble.narasim.me](https://scribble.narasim.me/)**
 
+How it works and what I learned breaking it: [the write-up](https://x.com/narasim_reddy/status/2125353116979605585).
+
 ![The page: a brain with an amber scribble on its forehead, and two stories beside it](web/public/preview.png)
 
 The model is a PNG. Every pixel is one weight, and the page runs the model
