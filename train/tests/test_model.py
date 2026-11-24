@@ -1,6 +1,6 @@
 import torch
 
-from model import GPT, Config, binarize, flip_bits
+from model import GPT, Config, binarize, flip_bits, ternarize
 
 CFG = Config(vocab_size=50, context=16, layers=2, heads=2, width=32)
 
@@ -56,3 +56,20 @@ def test_lesion_regions_tile_every_weight_once_and_restore_exactly():
     assert covered == model.count_weights()[0]
     after = [layer.weight for layer in model.bit_layers()]
     assert all(torch.equal(a, b) for a, b in zip(before, after, strict=True))
+
+
+def test_ternarize_gives_three_values_of_mean_size():
+    weight = torch.randn(64, 64)
+    hard = ternarize(weight)
+    scale = weight.abs().mean().item()
+    assert sorted(hard.unique().tolist()) == [-scale, 0.0, scale]
+
+
+def test_harden_keeps_output_of_a_ternary_model():
+    torch.manual_seed(0)
+    model = GPT(Config(vocab_size=50, context=16, layers=2, heads=2, width=32, ternary=True)).eval()
+    ids = torch.randint(0, 50, (2, 16))
+    before = model(ids)
+    model.harden()
+    assert torch.allclose(model(ids), before, atol=1e-5)
+    assert all(layer.weight.unique().numel() == 3 for layer in model.bit_layers())

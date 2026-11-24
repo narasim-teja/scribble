@@ -138,6 +138,8 @@ def read_png(path: Path) -> tuple[np.ndarray, dict, bytes]:
 def export(model: GPT, vocab: Vocab, path: Path) -> dict:
     """Write `model` and `vocab` to `path` as one picture. Returns the manifest."""
     cfg = model.cfg
+    if cfg.ternary or not cfg.one_bit:
+        raise ValueError("only a one-bit model fits one pixel per weight")
     state = {name: value.cpu() for name, value in model.state_dict().items()}
     bit_names = _bit_names(model)
     side = picture_side(cfg)

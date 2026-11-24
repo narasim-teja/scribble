@@ -23,6 +23,9 @@ class Config:
     heads: int = 4
     width: int = 256
     one_bit: bool = True
+    # Three weight values (-scale, 0, +scale) instead of two. A training
+    # experiment only: such a model cannot be exported as a one-bit picture.
+    ternary: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -32,6 +35,12 @@ def binarize(weight: Tensor) -> Tensor:
     """Replace each weight by +scale or -scale, where scale is the mean size."""
     scale = weight.abs().mean()
     return torch.where(weight >= weight.mean(), scale, -scale)
+
+
+def ternarize(weight: Tensor) -> Tensor:
+    """Replace each weight by -scale, 0 or +scale, whichever is nearest (BitNet b1.58)."""
+    scale = weight.abs().mean()
+    return (weight / scale).round().clamp(-1, 1) * scale
 
 
 class RMSNorm(nn.Module):
@@ -46,20 +55,22 @@ class RMSNorm(nn.Module):
 class BitLinear(nn.Module):
     """Normalize the input, then apply a bias-free linear layer.
 
-    With `one_bit`, the forward pass sees binarized weights while gradients
-    flow to the full-precision weights underneath (straight-through estimator).
+    With `one_bit`, the forward pass sees quantized weights (two values, or
+    three with `ternary`) while gradients flow to the full-precision weights
+    underneath (straight-through estimator).
     """
 
-    def __init__(self, inputs: int, outputs: int, one_bit: bool) -> None:
+    def __init__(self, inputs: int, outputs: int, one_bit: bool, ternary: bool = False) -> None:
         super().__init__()
         self.one_bit = one_bit
+        self.quantize = ternarize if ternary else binarize
         self.norm = RMSNorm(inputs)
         self.weight = nn.Parameter(torch.randn(outputs, inputs) * 0.02)
 
     def forward(self, x: Tensor) -> Tensor:
         weight = self.weight
         if self.one_bit:
-            weight = weight + (binarize(weight) - weight).detach()
+            weight = weight + (self.quantize(weight) - weight).detach()
         return F.linear(self.norm(x), weight)
 
 
@@ -67,8 +78,8 @@ class Attention(nn.Module):
     def __init__(self, cfg: Config) -> None:
         super().__init__()
         self.heads = cfg.heads
-        self.qkv = BitLinear(cfg.width, 3 * cfg.width, cfg.one_bit)
-        self.out = BitLinear(cfg.width, cfg.width, cfg.one_bit)
+        self.qkv = BitLinear(cfg.width, 3 * cfg.width, cfg.one_bit, cfg.ternary)
+        self.out = BitLinear(cfg.width, cfg.width, cfg.one_bit, cfg.ternary)
 
     def forward(self, x: Tensor) -> Tensor:
         batch, time, width = x.shape
@@ -83,8 +94,8 @@ class Attention(nn.Module):
 class MLP(nn.Module):
     def __init__(self, cfg: Config) -> None:
         super().__init__()
-        self.up = BitLinear(cfg.width, 4 * cfg.width, cfg.one_bit)
-        self.down = BitLinear(4 * cfg.width, cfg.width, cfg.one_bit)
+        self.up = BitLinear(cfg.width, 4 * cfg.width, cfg.one_bit, cfg.ternary)
+        self.down = BitLinear(4 * cfg.width, cfg.width, cfg.one_bit, cfg.ternary)
 
     def forward(self, x: Tensor) -> Tensor:
         return self.down(F.gelu(self.up(x)))
@@ -136,7 +147,7 @@ class GPT(nn.Module):
         stored weight is literally +scale or -scale, ready to be damaged.
         """
         for layer in self.bit_layers():
-            layer.weight.copy_(binarize(layer.weight))
+            layer.weight.copy_(layer.quantize(layer.weight))
             layer.one_bit = False
 
     @torch.no_grad()

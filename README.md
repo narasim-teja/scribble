@@ -49,6 +49,10 @@ Everything on the page comes from the model. Nothing is faked for effect.
 - The float twin is no tougher. With the same share of weights negated it
   loses more at every level, and by 5% the two score the same (1.41 and
   1.38). `train/curve.py` prints the curve.
+- A third value helps. A ternary twin (each weight -1, 0 or +1, trained with
+  `train.py --ternary`) reaches 0.556, a little under half way from one bit
+  to float. It cannot be the picture: three values do not fit one black or
+  white pixel.
 
 ## Run the page
 

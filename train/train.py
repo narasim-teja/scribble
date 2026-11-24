@@ -92,6 +92,7 @@ def main() -> None:
     parser.add_argument("--batch", type=int, default=128)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--float", action="store_true", help="full-precision weights")
+    parser.add_argument("--ternary", action="store_true", help="weights of -1, 0 or +1")
     parser.add_argument("--eval-every", type=int, default=500, help="steps")
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
@@ -100,7 +101,9 @@ def main() -> None:
     device = checkpoint.pick_device()
     data_dir = DATA_DIR / args.vocab
     vocab = Vocab.load(data_dir / "vocab.json")
-    cfg = Config(vocab.size, args.context, args.layers, args.heads, args.width, not args.float)
+    cfg = Config(
+        vocab.size, args.context, args.layers, args.heads, args.width, not args.float, args.ternary
+    )
     model = GPT(cfg).to(device)
     linear, other = model.count_weights()
     print(f"{args.name}: {linear:,} linear weights, {other:,} other, on {device}")
